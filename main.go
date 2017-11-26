@@ -2,26 +2,33 @@ package main
 
 import (
 	"fmt"
+
 	"github.com/ovh/go-ovh/ovh"
 )
 
-// PartialMe holds the first name of the currently logged-in user.
-// Visit https://api.ovh.com/console/#/me#GET for the full definition
-type PartialMe struct {
-	Firstname string `json:"firstname"`
-}
-
-// Instantiate an OVH client and get the firstname of the currently logged-in user.
-// Visit https://api.ovh.com/createToken/index.cgi?GET=/me to get your credentials.
 func main() {
-	var me PartialMe
+	// Create a client using credentials from config files or environment variables
+	client, err := ovh.NewEndpointClient("ovh-ca")
+	if err != nil {
+		fmt.Printf("Error: %q\n", err)
+		return
+	}
+	ckReq := client.NewCkRequest()
 
-	client, _ := ovh.NewClient(
-		"ovh-eu",
-		"YOUR_APPLICATION_KEY",
-		"YOUR_APPLICATION_SECRET",
-		"YOUR_CONSUMER_KEY",
-	)
-	client.Get("/me", &me)
-	fmt.Printf("Welcome %s!\n", me.Firstname)
+	// Allow GET method on /me
+	ckReq.AddRules(ovh.ReadOnly, "/me")
+
+	// Allow GET method on /xdsl and all its sub routes
+	ckReq.AddRecursiveRules(ovh.ReadOnly, "/cloud")
+
+	// Run the request
+	response, err := ckReq.Do()
+	if err != nil {
+		fmt.Printf("Error: %q\n", err)
+		return
+	}
+
+	// Print the validation URL and the Consumer key
+	fmt.Printf("Generated consumer key: %s\n", response.ConsumerKey)
+	fmt.Printf("Please visit %s to validate it\n", response.ValidationURL)
 }
